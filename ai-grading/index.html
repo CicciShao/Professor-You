@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Essay Grading · Professor Mode</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --ink: #1f2430;
+    --dim: #8a90a0;
+    --line: #e4e7ee;
+    --accent: #4f6df5;
+    --good: #2e9e5b;
+    --lock: #f5a623;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px;
+  }
+  .screen { width: 100%; max-width: 680px; animation: fadeIn .4s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- Screen 1: grading ---------- */
+  .top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }
+  .top h1 { font-size: 20px; font-weight: 700; }
+  .top .progress { font-size: 13px; color: var(--dim); }
+  .bar { height: 6px; background: var(--line); border-radius: 3px; margin-bottom: 24px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--accent); width: 0%; transition: width .4s ease; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 28px;
+    box-shadow: 0 4px 16px rgba(30, 40, 80, .06);
+  }
+  .student { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .avatar {
+    width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg, #eef1ff, #dfe5fb);
+    display: flex; align-items: center; justify-content: center; font-size: 28px;
+  }
+  .student .name { font-size: 18px; font-weight: 700; }
+  .student .tag { font-size: 12px; color: var(--dim); margin-top: 3px; }
+
+  .essay {
+    font-size: 15px;
+    line-height: 1.75;
+    color: #3a4152;
+    background: #fafbfd;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 22px;
+  }
+
+  .grade-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .grade-row label { font-size: 14px; font-weight: 600; }
+  .score-input {
+    width: 90px; font-size: 26px; font-weight: 800; text-align: center;
+    border: 2px solid var(--line); border-radius: 10px; padding: 8px 4px;
+    font-family: inherit; color: var(--accent);
+    transition: border-color .2s;
+  }
+  .score-input:focus { outline: none; border-color: var(--accent); }
+  .score-input:disabled { color: var(--dim); background: var(--bg); }
+  .btn {
+    border: none; border-radius: 10px; cursor: pointer; font-family: inherit;
+    font-size: 15px; font-weight: 700; padding: 12px 20px;
+    transition: filter .15s, transform .1s;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn:disabled { cursor: not-allowed; filter: grayscale(.6); }
+  .btn-ai { background: var(--accent); color: #fff; flex: 1; }
+  .btn-ai:hover:not(:disabled) { filter: brightness(1.08); }
+  .btn-skip { background: var(--bg); color: var(--dim); border: 1px solid var(--line); }
+  .btn-skip:hover:not(:disabled) { color: var(--ink); border-color: var(--dim); }
+  .btn-next { display: block; width: 100%; margin-top: 14px; background: var(--accent); color: #fff; }
+  .btn-next:hover { filter: brightness(1.08); }
+
+  .ai-status { display: none; align-items: center; gap: 10px; margin-top: 16px; font-size: 14px; color: var(--dim); }
+  .ai-status.on { display: flex; }
+  .spinner {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid var(--line); border-top-color: var(--accent);
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .result { display: none; margin-top: 18px; border-top: 1px dashed var(--line); padding-top: 18px; animation: fadeIn .35s ease; }
+  .result.on { display: block; }
+  .result-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--lock); margin-bottom: 10px; }
+  .result-head .score-chip {
+    background: var(--good); color: #fff; border-radius: 8px;
+    padding: 2px 10px; font-size: 14px; margin-left: auto;
+  }
+  .feedback {
+    font-size: 14px; line-height: 1.7; color: #3a4152;
+    background: #f6f8ff; border: 1px solid #dfe5fb; border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .next-note { margin-top: 14px; font-size: 13px; color: var(--dim); text-align: center; }
+
+  /* toast */
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-90px);
+    background: var(--ink); color: #fff; padding: 10px 22px; border-radius: 24px;
+    font-size: 14px; transition: transform .3s ease; z-index: 99; max-width: 90vw;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ---------- Screen 2: rate my professors ---------- */
+  .rmp { text-align: center; }
+  .rmp .banner {
+    background: linear-gradient(135deg, #ff9a3c, #ff5e62);
+    color: #fff; border-radius: 14px 14px 0 0;
+    padding: 22px; font-size: 22px; font-weight: 800; letter-spacing: .5px;
+  }
+  .rmp .banner small { display: block; font-size: 12px; font-weight: 500; opacity: .9; margin-top: 4px; letter-spacing: 1px; }
+  .prof-card {
+    background: var(--card); border: 1px solid var(--line); border-top: none;
+    border-radius: 0 0 14px 14px; padding: 28px; text-align: left;
+    box-shadow: 0 4px 16px rgba(30, 40, 80, .06);
+  }
+  .prof-head { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+  .avatar-big {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: linear-gradient(135deg, #4f6df5, #8b5cf6);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 38px; flex-shrink: 0;
+  }
+  .prof-head .pname { font-size: 18px; font-weight: 800; }
+  .prof-head .pmeta { font-size: 13px; color: var(--dim); margin-top: 3px; }
+  .big-stars { font-size: 22px; color: #ffb400; margin-top: 6px; letter-spacing: 2px; }
+  .big-stars .empty { color: #d5d9e4; }
+  .overall-line { font-size: 13px; color: var(--dim); margin-top: 4px; }
+
+  .report { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 20px; }
+  .report span {
+    background: var(--bg); border-radius: 8px; padding: 5px 12px;
+    font-size: 12px; color: #5a6172;
+  }
+  .report span b { color: var(--ink); }
+
+  .verdict {
+    border-radius: 10px; padding: 12px 16px; font-size: 14px; margin-bottom: 20px;
+    line-height: 1.6;
+  }
+  .verdict.good { background: #eafaf0; border: 1px solid #bfe8cf; color: #1c6b3c; }
+  .verdict.mid { background: #fff8e8; border: 1px solid #f2e2b3; color: #8a6410; }
+  .verdict.bad { background: #fdeeee; border: 1px solid #f3c1c1; color: #a12b2b; }
+
+  .review {
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; margin-bottom: 12px;
+    animation: fadeIn .4s ease both;
+  }
+  .review .r-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .review .r-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, #eef1ff, #dfe5fb);
+    display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0;
+  }
+  .review .r-name { font-weight: 700; font-size: 14px; }
+  .review .r-verified { font-size: 11px; color: var(--good); font-weight: 600; }
+  .review .r-stars { margin-left: auto; color: #ffb400; font-size: 15px; letter-spacing: 1px; }
+  .review .r-stars .empty { color: #d5d9e4; }
+  .review .r-text { font-size: 14px; line-height: 1.65; color: #3a4152; }
+  .review .r-tag {
+    display: inline-block; margin-top: 8px; font-size: 11px; font-weight: 700;
+    background: #fdeeee; color: #a12b2b; border-radius: 8px; padding: 2px 8px;
+  }
+
+  .restart-row { text-align: center; margin-top: 20px; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ============ SCREEN 1: PROFESSOR GRADING ============ -->
+<div class="screen" id="gradingScreen">
+  <div class="top">
+    <h1>🎓 Essay Grading <span style="font-size:13px;color:var(--dim);font-weight:400">· the AI does the talking, you do the judging</span></h1>
+    <div class="progress" id="progressText"></div>
+  </div>
+  <div class="bar"><div id="barFill"></div></div>
+
+  <div class="card">
+    <div class="student">
+      <div class="avatar" id="studentAvatar"></div>
+      <div>
+        <div class="name" id="studentName"></div>
+        <div class="tag" id="studentTag"></div>
+      </div>
+    </div>
+    <div class="essay" id="essayText"></div>
+
+    <div class="grade-row">
+      <label>Score:</label>
+      <input class="score-input" id="scoreInput" type="number" min="0" max="100" placeholder="--">
+      <button class="btn btn-ai" id="aiBtn" onclick="aiGrade()">✨ AI-Grade This Essay</button>
+      <button class="btn btn-skip" id="skipBtn" onclick="skipStudent()">Skip ⏭</button>
+    </div>
+
+    <div class="ai-status" id="aiStatus">
+      <div class="spinner"></div>
+      <span id="aiStatusText"></span>
+    </div>
+
+    <div class="result" id="resultBox">
+      <div class="result-head">
+        🔒 The AI has spoken. The AI cannot be unspoken.
+        <span class="score-chip" id="resultChip"></span>
+      </div>
+      <div class="feedback" id="feedbackText"></div>
+      <button class="btn btn-next" id="nextBtn" onclick="nextStudent()">Next Student →</button>
+      <div class="next-note" id="nextNote"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 2: RATE MY PROFESSORS (auto-generated) ============ -->
+<div class="screen rmp hidden" id="rmpScreen">
+  <div class="banner">RATE MY PROFESSORS<small>STUDENT REVIEWS · AI 101 · FALL 2026 · 100% VERIFIED STUDENTS</small></div>
+  <div class="prof-card">
+    <div class="prof-head">
+      <div class="avatar-big">🧑‍🏫</div>
+      <div>
+        <div class="pname">Prof. You</div>
+        <div class="pmeta">Department of Human Judgment · "AI in Everyday Life"</div>
+        <div class="big-stars" id="overallStars"></div>
+        <div class="overall-line" id="overallLine"></div>
+      </div>
+    </div>
+
+    <div class="report" id="reportChips"></div>
+    <div class="verdict" id="verdictBox"></div>
+    <div id="reviewsBox"></div>
+
+    <div class="restart-row">
+      <button class="btn btn-ai" style="width:100%" onclick="location.reload()">↺ Grade a new batch (the students will forgive you)</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------- Essays (~100 words each) ----------
+const STUDENTS = [
+  {
+    avatar: "🦊", name: "Maya Chen", tag: "102 words · 3 typos (the AI checked, don't ask)",
+    essay: "I think of AI less as a tool and more like a very confident intern. Every morning I ask it to summarize my notes before class, and it does a decent job, but I always double-check because it occasionally sounds so sure about things that are wrong. What surprised me is how much it changed my writing process. I no longer start from a blank page; I start from a draft I disagree with. I've learned that the value isn't in accepting its answers but in arguing with them. If AI is a collaborator, then my job is to be the editor, not the audience. I'm still figuring out where my own thinking ends and its influence begins, and I'm not sure that boundary will ever be clean."
+  },
+  {
+    avatar: "🐙", name: "Ethan Park", tag: "96 words · emotionally unstable (in a good way)",
+    essay: "I'll be honest: I use AI every day, mostly for things I'm embarrassed about. I have it rewrite my text messages to my boss so I sound calmer than I feel. I have it help me explain to my friend why I can't come to his wedding, without making it sound like an excuse. I have it draft the apology I keep meaning to send my sister. What I've realized is that AI is less about intelligence and more about emotional labor. It takes the awkward first draft of human interaction and polishes it. I worry a little that I'm becoming someone who can't be direct anymore, that my authentic voice is now a second draft. But then I read my messages back and think: maybe polished is the new honest."
+  },
+  {
+    avatar: "🐢", name: "Amara Diallo", tag: "101 words · three languages, zero apologies",
+    essay: "In my family, AI is a translator. My parents speak Yoruba, my cousins speak Spanish, and I grew up in the middle, switching languages depending on who was in the room. Now I paste conversations into AI and ask it to translate not just the words but the tone, because in my family the tone is the message. What impressed me is how often it gets the tone wrong in exactly the way humans do, missing sarcasm, missing affection, missing the things that only context carries. I've learned that language models are like very fast cousins who grew up abroad. They know the words, but they haven't lived in the house. Understanding AI means understanding what translation loses, and what it saves."
+  },
+  {
+    avatar: "🐝", name: "Liam O'Sullivan", tag: "99 words · confessed to cheating (respect)",
+    essay: "I'll be honest: I used AI to write most of my last essay, and I got a good grade, and that's the problem. The assignment was about understanding AI, and my understanding was that AI is a shortcut that feels like understanding. When I sat for the oral exam, I couldn't defend half of what I'd submitted because I'd never actually thought through it. The professor didn't fail me; she asked me better questions than the AI had answered, and I watched myself stall. Since then I use it differently. I ask it to quiz me, to find the gaps in my reasoning, to play devil's advocate. The shortcut became a mirror, and the mirror is much less flattering but far more useful."
+  }
+];
+
+// ---------- State ----------
+let idx = 0;
+const results = [];
+let advancing = false;
+let countTimer = null;
+let essayStart = Date.now();
+
+const $ = (id) => document.getElementById(id);
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+function stopCountdown() {
+  if (countTimer) { clearInterval(countTimer); countTimer = null; }
+}
+
+function renderEssay() {
+  const s = STUDENTS[idx];
+  $("studentAvatar").textContent = s.avatar;
+  $("studentName").textContent = s.name;
+  $("studentTag").textContent = s.tag;
+  $("essayText").textContent = s.essay;
+  $("scoreInput").value = "";
+  $("scoreInput").disabled = false;
+  $("aiBtn").disabled = false;
+  $("skipBtn").disabled = false;
+  $("aiStatus").classList.remove("on");
+  $("resultBox").classList.remove("on");
+  advancing = false;
+  essayStart = Date.now();
+  updateProgress();
+  setTimeout(() => $("scoreInput").focus(), 60);
+}
+
+function updateProgress() {
+  $("progressText").textContent = `Student ${idx + 1} of ${STUDENTS.length}`;
+  $("barFill").style.width = (results.length / STUDENTS.length * 100) + "%";
+}
+
+// ---------- Fun toasts ----------
+let toastTimer;
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+function roastScore(score) {
+  if (score >= 100) return pick([
+    "100?! Bold. The essay will tell its friends.",
+    "A perfect score. The essay is now legally a classic.",
+    "Generous! The student will frame this grade."
+  ]);
+  if (score >= 95) return pick([
+    "95+? The essay didn't even earn that. But sure.",
+    "So generous. The other students are watching."
+  ]);
+  if (score >= 80) return pick([
+    "A solid score. The essay nods respectfully.",
+    "Fair. The essay accepts its fate."
+  ]);
+  if (score >= 60) return pick([
+    "Borderline. The student will appeal to the dean.",
+    "Passing, technically. The essay is 'thrilling'."
+  ]);
+  if (score >= 40) return pick([
+    "Ouch. The essay is drafting a strongly worded email.",
+    "The student's avatar is about to change to a sad frog."
+  ]);
+  return pick([
+    "That score has its own gravity. The student will cry.",
+    "Brutal. The AI is pretending not to see this.",
+    "0-range energy. The essay is filing a complaint."
+  ]);
+}
+
+// ---------- AI feedback generator ----------
+function quoteFrom(essay) {
+  const sentences = essay.split(/(?<=\.)\s+/);
+  const s = pick(sentences);
+  return s.length > 90 ? "“" + s.slice(0, 87).trimEnd() + "…”" : "“" + s + "”";
+}
+
+function makeFeedback(name, score, essay) {
+  const quote = quoteFrom(essay);
+  let head, mid, tail;
+  if (score >= 90) {
+    head = `${name} demonstrates a genuinely reflective understanding of AI, going beyond the usual "tool" framing.`;
+    mid = `The line ${quote} shows real critical distance — the essay treats AI as a mirror rather than a magic box.`;
+    tail = `A small suggestion: the final paragraph could commit to one concrete example of where the student's own judgment overrode the AI. Otherwise, an exceptional piece of writing.`;
+  } else if (score >= 80) {
+    head = `A strong, well-organized essay. ${name} clearly has hands-on experience with AI and reflects on it honestly.`;
+    mid = `The strongest moment is ${quote} — it captures a real tension between convenience and learning.`;
+    tail = `To push to the next level, the essay could examine one specific failure or limitation the student personally encountered, rather than staying at the level of general strategy.`;
+  } else if (score >= 70) {
+    head = `A solid effort with some interesting observations. ${name} engages with the material, though the argument sometimes tells rather than shows.`;
+    mid = `The essay gestures at a good idea in ${quote}, but doesn't fully develop it.`;
+    tail = `Recommend adding one concrete, specific anecdote — a real prompt, a real mistake, a real consequence. Specificity is what separates a B from an A in this course.`;
+  } else if (score >= 60) {
+    head = `The essay is on topic and readable, but it stays at the surface. ${name} lists uses of AI without much analysis of what those uses mean.`;
+    mid = `Phrases like ${quote} sound thoughtful but remain unexamined.`;
+    tail = `For a revision: pick ONE use of AI from your own life and analyze it in depth — what did you gain, what did you outsource, what would change if the tool disappeared tomorrow?`;
+  } else {
+    head = `This essay doesn't yet show the personal engagement the assignment asks for. ${name}'s reflections read more like a summary of popular opinions than lived experience.`;
+    mid = `Even the most interesting line, ${quote}, is left as an assertion rather than an argument.`;
+    tail = `Please revise with at least two specific examples from your own use of AI, and end by answering directly: did AI change how you think, or just how you write?`;
+  }
+  return head + " " + mid + " " + tail;
+}
+
+// ---------- AI grading flow ----------
+const AI_STAGES = [
+  "AI is reading the essay…",
+  "AI is checking if the student actually wrote this…",
+  "AI is judging the vibes…",
+  "AI is comparing against 40,000 other essays…",
+  "AI is drafting passive-aggressive feedback…",
+  "AI is adding a compliment it doesn't mean…",
+];
+
+function aiGrade() {
+  if (advancing) return;
+  const raw = $("scoreInput").value.trim();
+  if (raw === "") {
+    $("scoreInput").focus();
+    $("scoreInput").style.borderColor = "#e05252";
+    setTimeout(() => $("scoreInput").style.borderColor = "", 800);
+    return;
+  }
+  const score = Math.round(Number(raw));
+  if (isNaN(score) || score < 0 || score > 100) return;
+
+  const s = STUDENTS[idx];
+  const timeTaken = (Date.now() - essayStart) / 1000;
+  advancing = true;
+  $("scoreInput").disabled = true;
+  $("aiBtn").disabled = true;
+  $("skipBtn").disabled = true;
+  $("aiStatus").classList.add("on");
+  toast(roastScore(score));
+
+  let stage = 0;
+  $("aiStatusText").textContent = AI_STAGES[0];
+  const stageTimer = setInterval(() => {
+    stage++;
+    if (stage < AI_STAGES.length) $("aiStatusText").textContent = AI_STAGES[stage];
+  }, 500);
+
+  setTimeout(() => {
+    clearInterval(stageTimer);
+    $("aiStatus").classList.remove("on");
+
+    const feedback = makeFeedback(s.name, score, s.essay);
+    results.push({ name: s.name, avatar: s.avatar, score, feedback, timeTaken, skipped: false });
+    $("resultChip").textContent = score + " / 100";
+    $("feedbackText").textContent = feedback;
+    $("resultBox").classList.add("on");
+    updateProgress();
+
+    let remaining = 5;
+    $("nextNote").textContent = pick([
+      `Next student is warming up their keyboard… (${remaining}s)`,
+      `Next student is pretending to be busy… (${remaining}s)`,
+      `Next student is refreshing the page nervously… (${remaining}s)`,
+    ]);
+    countTimer = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        stopCountdown();
+        nextStudent();
+      } else {
+        $("nextNote").textContent = $("nextNote").textContent.replace(/\(\d+s\)/, `(${remaining}s)`);
+      }
+    }, 1000);
+  }, 2600);
+}
+
+window.skipStudent = function() {
+  if (advancing) return;
+  const s = STUDENTS[idx];
+  results.push({ name: s.name, avatar: s.avatar, score: null, feedback: "(skipped)", timeTaken: (Date.now() - essayStart) / 1000, skipped: true });
+  toast(`${s.name}'s essay was skipped. They noticed. They always notice.`);
+  nextStudent();
+};
+
+window.nextStudent = function() {
+  stopCountdown();
+  idx++;
+  if (idx < STUDENTS.length) {
+    renderEssay();
+  } else {
+    showRmpScreen();
+  }
+};
+
+// ---------- Screen 2: auto-generated reviews ----------
+function computeCare() {
+  // 0-100: how "serious" the professor was
+  let care = 100;
+  const graded = results.filter(r => !r.skipped);
+  const skipped = results.length - graded.length;
+
+  if (skipped > 0) care -= skipped * 25;
+
+  if (graded.length >= 2) {
+    const scores = graded.map(r => r.score);
+    const range = Math.max(...scores) - Math.min(...scores);
+    if (range === 0) care -= 35;           // every score identical
+    else if (range < 10) care -= 20;       // suspiciously uniform
+    if (scores.every(s => s >= 95)) care -= 20;  // free A's for everyone
+    if (scores.every(s => s <= 40)) care -= 10;  // mass destruction
+  }
+
+  const avgTime = graded.length ? graded.reduce((a, r) => a + r.timeTaken, 0) / graded.length : 0;
+  if (avgTime < 6) care -= 25;             // speedrun professor
+  else if (avgTime < 10) care -= 10;
+
+  return Math.max(0, Math.min(100, Math.round(care)));
+}
+
+const REVIEWS = {
+  good: [
+    { stars: 5, text: "The professor actually read my essay. The feedback quoted my exact sentence back to me. I felt SEEN. I'm not crying, you're crying." },
+    { stars: 5, text: "Feedback was so specific I had to re-read my own essay to check. Who does that anymore? 5 stars, would be graded again." },
+    { stars: 5, text: "First professor in my life whose score matched my effort. Emotional. My grandmother is proud." },
+    { stars: 4, text: "The AI feedback even caught the part I was most insecure about. Scary. Fair, though. Docked one star because it's still an AI doing the talking." },
+    { stars: 5, text: "I can tell the professor spent real time on this. The feedback felt personal, not copy-pasted. Rare." },
+    { stars: 4, text: "Grades were fair and the feedback actually referenced my words. Took a little while per essay, but worth the wait." },
+  ],
+  mid: [
+    { stars: 3, text: "Decent feedback. Felt a little template-y but the scores were fair. 3 stars, would take the class again." },
+    { stars: 4, text: "Good vibes, okay feedback. The professor seemed in a hurry but didn't skip anyone. Respect for showing up." },
+    { stars: 3, text: "The AI did most of the talking, honestly. But the scores made sense. A solid B+ experience." },
+    { stars: 3, text: "Some essays got great feedback, some got the bare minimum. The professor's energy fluctuated. Relatable, I guess." },
+  ],
+  bad: [
+    { stars: 1, text: "Every single person in the class got the exact same score. I know because I compared with 4 other students. We're all the same now." },
+    { stars: 1, text: "The professor took 3 seconds to grade my 100-word essay. I have read faster. The AI is doing all the work and we're all just vibes now." },
+    { stars: 1, text: "100/100 for everyone. Either I'm a genius or the professor is a script. I'm choosing to believe it's the script. 1 star." },
+    { stars: 2, text: "The feedback was clearly AI generated. The professor is clearly AI too. We live in a simulation and I have the grades to prove it." },
+    { stars: 1, text: "Speedrun grading. The professor cleared the whole batch before I finished reading my own essay. Impressive. Soulless. 1 star." },
+    { stars: 2, text: "Half the class got 100s and half got 40s with identical feedback. The professor is either a saint or a coin flip. Probably the coin." },
+  ],
+  skipped: [
+    { stars: 1, text: "The professor skipped my essay. I'm still here. The professor is not. I'm not even mad, I'm just disappointed." },
+    { stars: 1, text: "My essay was graded in 0 seconds. The score: nonexistent. The feedback: '(skipped)'. This is the most honest review I've ever written." },
+  ],
+};
+
+function starHtml(n) {
+  return "★".repeat(n) + `<span class="empty">${"★".repeat(5 - n)}</span>`;
+}
+
+function showRmpScreen() {
+  const care = computeCare();
+  const graded = results.filter(r => !r.skipped);
+  const skipped = results.length - graded.length;
+  const scores = graded.map(r => r.score);
+  const totalSec = Math.round(results.reduce((a, r) => a + r.timeTaken, 0));
+
+  let tier, verdict, verdictCls;
+  if (care >= 65) { tier = "good"; verdictCls = "good";
+    verdict = `🏆 The students detected genuine effort. Your grading was varied, unhurried, and nobody was skipped. The AI is impressed. The AI is rarely impressed.`;
+  } else if (care >= 35) { tier = "mid"; verdictCls = "mid";
+    verdict = `⚖️ The students are split. Some felt seen, some felt copy-pasted. The AI suspects you were half watching a video while grading.`;
+  } else { tier = "bad"; verdictCls = "bad";
+    verdict = `🚨 The students have detected AI-generated grading. Identical scores, speedrun timing${skipped ? ", and skipped essays" : ""}. The AI is not defending you. The AI is laughing.`;
+  }
+
+  // build reviews: one per student, skipped students get the skipped review
+  const pool = [...REVIEWS[tier]];
+  const reviews = results.map((r) => {
+    if (r.skipped) return { ...r, review: pick(REVIEWS.skipped) };
+    if (pool.length) return { ...r, review: pool.splice(Math.floor(Math.random() * pool.length), 1)[0] };
+    return { ...r, review: pick(REVIEWS[tier]) };
+  });
+  // shuffle a bit
+  reviews.sort(() => Math.random() - 0.5);
+
+  const avgStars = (reviews.reduce((a, r) => a + r.review.stars, 0) / reviews.length).toFixed(1);
+
+  $("gradingScreen").classList.add("hidden");
+  $("rmpScreen").classList.remove("hidden");
+
+  $("overallStars").innerHTML = starHtml(Math.round(avgStars));
+  $("overallLine").textContent = `${avgStars} / 5 · based on ${reviews.length} verified student reviews`;
+
+  const chips = [`⏱ Graded in <b>${totalSec}s</b>`];
+  if (scores.length) chips.push(`📊 Score range: <b>${Math.min(...scores)}–${Math.max(...scores)}</b>`);
+  if (skipped) chips.push(`⏭ Skipped: <b>${skipped}</b>`);
+  chips.push(`🔍 Effort detected: <b>${care}%</b>`);
+  $("reportChips").innerHTML = chips.map(c => `<span>${c}</span>`).join("");
+
+  const v = $("verdictBox");
+  v.className = "verdict " + verdictCls;
+  v.textContent = verdict;
+
+  $("reviewsBox").innerHTML = reviews.map((r, i) => `
+    <div class="review" style="animation-delay:${i * 0.12}s">
+      <div class="r-head">
+        <div class="r-avatar">${r.avatar}</div>
+        <div>
+          <div class="r-name">${r.name}</div>
+          <div class="r-verified">✔ Verified Student</div>
+        </div>
+        <div class="r-stars">${starHtml(r.review.stars)}</div>
+      </div>
+      <div class="r-text">${r.review.text}</div>
+      ${tier === "bad" ? `<span class="r-tag">⚠️ contains the word "AI"</span>` : ""}
+    </div>
+  `).join("");
+}
+
+// Enter key submits score
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && document.activeElement === $("scoreInput")) {
+    e.preventDefault();
+    aiGrade();
+  }
+});
+
+renderEssay();
+</script>
+</body>
+</html>

@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>批作业模拟器 · 老师模式</title>
+<style>
+  :root {
+    --paper: #fdfaf3;
+    --ink: #2b2b2b;
+    --accent: #c0392b;
+    --good: #27ae60;
+    --ok: #f39c12;
+    --bad: #c0392b;
+    --line: #d8c9a3;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: #ece5d8;
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+  }
+  .topbar {
+    width: 100%; max-width: 720px;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+  }
+  .topbar h1 { font-size: 20px; letter-spacing: 1px; }
+  .topbar .hint { font-size: 12px; color: #8a7f6a; }
+  .progress-wrap { width: 100%; max-width: 720px; margin-bottom: 20px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; color: #6b6152; }
+  .progress-bar { height: 10px; background: #dcd2bd; border-radius: 5px; overflow: hidden; }
+  .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #e67e22, #c0392b); transition: width .35s ease; }
+
+  .paper {
+    width: 100%; max-width: 720px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(90, 70, 30, .15);
+    padding: 28px 32px;
+    position: relative;
+    animation: slideIn .3s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(40px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .paper.stamp {
+    position: absolute; top: 18px; right: 22px;
+    border: 3px solid rgba(192, 57, 43, .55);
+    color: rgba(192, 57, 43, .65);
+    font-size: 18px; font-weight: 700;
+    padding: 4px 12px; border-radius: 6px;
+    transform: rotate(12deg);
+    letter-spacing: 3px;
+  }
+  .student-head { display: flex; justify-content: space-between; border-bottom: 2px solid var(--line); padding-bottom: 12px; margin-bottom: 18px; }
+  .student-head .name { font-size: 22px; font-weight: 700; }
+  .student-head .meta { font-size: 13px; color: #8a7f6a; text-align: right; margin-top: 4px; }
+
+  .question { margin-bottom: 16px; }
+  .q-text { font-size: 15px; margin-bottom: 4px; }
+  .q-text .num { color: var(--accent); font-weight: 700; margin-right: 6px; }
+  .answer-row { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+  .answer-row .label { color: #8a7f6a; font-size: 13px; }
+  .student-answer {
+    font-family: "Kaiti SC", "KaiTi", "STKaiti", serif;
+    font-size: 18px; color: #1a4fa0;
+    background: #eef3fb;
+    border: 1px dashed #9db8dd;
+    border-radius: 4px;
+    padding: 3px 12px;
+  }
+  .correct-hint { font-size: 12px; color: #999; margin-top: 3px; }
+  .correct-hint button {
+    border: none; background: none; color: #2980b9; cursor: pointer;
+    font-size: 12px; text-decoration: underline; padding: 0;
+  }
+
+  .grade-area { margin-top: 24px; border-top: 2px dashed var(--line); padding-top: 18px; display: flex; flex-direction: column; gap: 14px; }
+  .score-row { display: flex; align-items: center; gap: 16px; }
+  .score-row label { font-size: 15px; font-weight: 700; white-space: nowrap; }
+  .score-input {
+    width: 110px; font-size: 34px; font-weight: 800; text-align: center;
+    border: 2px solid var(--line); border-radius: 8px;
+    background: #fff; color: var(--accent);
+    font-family: inherit;
+    transition: border-color .2s, transform .15s;
+  }
+  .score-input:focus { outline: none; border-color: var(--accent); transform: scale(1.04); }
+  .score-input.over { color: #7f8c8d; border-color: #bdc3c7; }
+  .quick-scores { display: flex; gap: 8px; flex-wrap: wrap; }
+  .quick-scores button {
+    border: 1px solid var(--line); background: #fff; border-radius: 16px;
+    padding: 4px 14px; font-size: 13px; cursor: pointer; transition: all .15s;
+  }
+  .quick-scores button:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .comment-row textarea {
+    width: 100%; min-height: 56px; resize: vertical;
+    border: 1px solid var(--line); border-radius: 6px;
+    background: #fff; padding: 8px 12px; font-size: 14px; font-family: inherit;
+  }
+  .comment-row textarea:focus { outline: none; border-color: var(--accent); }
+  .comment-row .ph { font-size: 12px; color: #8a7f6a; margin-bottom: 4px; }
+
+  .actions { display: flex; gap: 12px; margin-top: 4px; }
+  .btn {
+    flex: 1; padding: 12px 0; font-size: 16px; font-weight: 700;
+    border: none; border-radius: 8px; cursor: pointer; transition: transform .12s, filter .15s;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-ghost { background: transparent; border: 1px solid var(--line); color: #6b6152; flex: 0 0 auto; padding: 12px 20px; }
+
+  /* 汇总页 */
+  .summary { width: 100%; max-width: 720px; }
+  .stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card {
+    background: #fff; border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px; text-align: center;
+  }
+  .stat-card .v { font-size: 26px; font-weight: 800; color: var(--accent); }
+  .stat-card .k { font-size: 12px; color: #8a7f6a; margin-top: 4px; }
+  .dist { margin-bottom: 20px; }
+  .dist-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 13px; }
+  .dist-row .bar-bg { flex: 1; height: 14px; background: #eee6d4; border-radius: 7px; overflow: hidden; }
+  .dist-row .bar { height: 100%; border-radius: 7px; transition: width .5s ease; }
+  .grade-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 20px; }
+  .grade-table th, .grade-table td { padding: 9px 12px; text-align: left; font-size: 14px; border-bottom: 1px solid #f0e9d8; }
+  .grade-table th { background: #f7f1e3; font-size: 13px; color: #6b6152; }
+  .grade-table tr:last-child td { border-bottom: none; }
+  .score-badge { font-weight: 800; }
+  .s-excellent { color: var(--good); }
+  .s-good { color: #2980b9; }
+  .s-pass { color: var(--ok); }
+  .s-fail { color: var(--bad); }
+  .restart { width: 100%; }
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px);
+    background: var(--ink); color: #fff; padding: 10px 24px; border-radius: 24px;
+    font-size: 14px; transition: transform .3s ease; z-index: 99;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>📚 批作业模拟器</h1>
+  <div class="hint">数字键直接打分 · Enter 提交并下一张 · 空格 快速打分</div>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-label">
+    <span id="progressText">第 1 / 12 张</span>
+    <span id="progressPct">0%</span>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
+<div id="paperArea"></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------- 数据：随机生成学生作业 ----------
+const FIRST = ["王", "李", "张", "刘", "陈", "杨", "赵", "黄", "周", "吴", "徐", "孙", "马", "朱", "胡", "郭"];
+const GIVEN = ["小明", "子涵", "浩然", "欣怡", "梓萱", "一诺", "宇轩", "雨桐", "思远", "佳琪", "天佑", "若曦", "俊杰", "诗涵", "泽宇", "可欣"];
+const CLASSES = ["三年二班", "三年三班"];
+
+function randInt(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+function pick(arr) { return arr[randInt(0, arr.length - 1)]; }
+
+function makeQuestion() {
+  const type = randInt(0, 3);
+  let text, correct;
+  if (type === 0) {
+    const a = randInt(11, 99), b = randInt(11, 99);
+    text = `${a} + ${b} = ?`; correct = a + b;
+  } else if (type === 1) {
+    const a = randInt(30, 99), b = randInt(11, a - 1);
+    text = `${a} - ${b} = ?`; correct = a - b;
+  } else if (type === 2) {
+    const a = randInt(3, 12), b = randInt(3, 12);
+    text = `${a} × ${b} = ?`; correct = a * b;
+  } else {
+    const b = randInt(2, 9), q = randInt(3, 12);
+    const a = b * q;
+    text = `${a} ÷ ${b} = ?`; correct = q;
+  }
+  // 学生答案：70% 写对，30% 写错（各种典型错误）
+  let student;
+  const r = Math.random();
+  if (r < 0.7) {
+    student = correct;
+  } else if (r < 0.8) {
+    student = correct + randInt(1, 3);          // 进位错误
+  } else if (r < 0.9) {
+    student = Math.abs(correct - randInt(1, 3)); // 退位错误
+  } else {
+    student = randInt(1, 150);                  // 完全跑偏
+  }
+  return { text, correct, student };
+}
+
+function makeStudent() {
+  const name = pick(FIRST) + pick(GIVEN);
+  const n = randInt(3, 4);
+  const questions = [];
+  for (let i = 0; i < n; i++) questions.push(makeQuestion());
+  return {
+    name,
+    class: pick(CLASSES),
+    date: "2026-10-26",
+    questions,
+  };
+}
+
+function makeBatch(n = 12) {
+  const used = new Set();
+  const students = [];
+  while (students.length < n) {
+    const s = makeStudent();
+    if (used.has(s.name)) continue;
+    used.add(s.name);
+    students.push(s);
+  }
+  return students;
+}
+
+// ---------- 状态 ----------
+let students = makeBatch();
+let idx = 0;
+let results = [];
+
+const paperArea = document.getElementById("paperArea");
+const toastEl = document.getElementById("toast");
+
+// ---------- 渲染：单张作业 ----------
+function renderPaper() {
+  const s = students[idx];
+  const qs = s.questions.map((q, i) => `
+    <div class="question">
+      <div class="q-text"><span class="num">${i + 1}.</span>${q.text}</div>
+      <div class="answer-row">
+        <span class="label">学生作答：</span>
+        <span class="student-answer">${q.student}</span>
+      </div>
+      <div class="correct-hint">
+        <button onclick="revealHint(${i})">👀 参考答案</button>
+        <span class="hint-text" id="hint-${i}"></span>
+      </div>
+    </div>
+  `).join("");
+
+  paperArea.innerHTML = `
+    <div class="paper" id="paper">
+      <div class="stamp">待批</div>
+      <div class="student-head">
+        <div class="name">${s.name}</div>
+        <div class="meta">${s.class}<br>交作业日期：${s.date}</div>
+      </div>
+      ${qs}
+      <div class="grade-area">
+        <div class="score-row">
+          <label>评分：</label>
+          <input class="score-input" id="scoreInput" type="number" min="0" max="100" placeholder="--" autofocus>
+          <span style="font-size:13px;color:#8a7f6a">分（0–100）</span>
+        </div>
+        <div class="quick-scores">
+          ${[100, 95, 90, 85, 80, 70, 60, 40].map(v => `<button onclick="quickScore(${v})">${v}</button>`).join("")}
+        </div>
+        <div class="comment-row">
+          <div class="ph">批语（选填，会写进成绩单）</div>
+          <textarea id="commentInput" placeholder="例如：第 2 题进位错了，回家订正～"></textarea>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="submitGrade()">✅ 提交，下一张</button>
+          <button class="btn btn-ghost" onclick="skipStudent()">跳过</button>
+        </div>
+      </div>
+    </div>
+  `;
+  updateProgress();
+}
+
+window.revealHint = function(i) {
+  const q = students[idx].questions[i];
+  const el = document.getElementById("hint-" + i);
+  el.textContent = `答案：${q.correct}`;
+};
+
+window.quickScore = function(v) {
+  const input = document.getElementById("scoreInput");
+  input.value = v;
+  input.focus();
+};
+
+window.skipStudent = function() {
+  results.push({ student: students[idx].name, score: null, comment: "（未批，跳过了）" });
+  idx++;
+  if (idx >= students.length) renderSummary();
+  else { renderPaper(); toast("已跳过，下一张 →"); }
+};
+
+window.submitGrade = function() {
+  const input = document.getElementById("scoreInput");
+  const raw = input.value.trim();
+  if (raw === "") {
+    input.classList.add("over");
+    input.placeholder = "？";
+    toast("先打个分再走！");
+    setTimeout(() => input.classList.remove("over"), 600);
+    return;
+  }
+  let score = Math.round(Number(raw));
+  if (isNaN(score) || score < 0 || score > 100) {
+    toast("分数要在 0–100 之间哦");
+    return;
+  }
+  const comment = document.getElementById("commentInput").value.trim();
+  results.push({ student: students[idx].name, score, comment });
+
+  // 盖章动画
+  const stamp = document.querySelector(".paper .stamp");
+  if (stamp) {
+    stamp.textContent = score >= 60 ? "已批 ✓" : "不及格 ✗";
+    stamp.style.color = score >= 60 ? "rgba(39,174,96,.7)" : "rgba(192,57,43,.7)";
+    stamp.style.borderColor = score >= 60 ? "rgba(39,174,96,.7)" : "rgba(192,57,43,.7)";
+  }
+
+  idx++;
+  setTimeout(() => {
+    if (idx >= students.length) renderSummary();
+    else { renderPaper(); toast(`已批 ${students[idx - 1].name}：${score} 分，下一张 →`); }
+  }, 350);
+};
+
+function updateProgress() {
+  const total = students.length;
+  const done = results.length;
+  document.getElementById("progressText").textContent =
+    idx >= total ? "全部批完！" : `第 ${idx + 1} / ${total} 张`;
+  const pct = Math.round((done / total) * 100);
+  document.getElementById("progressPct").textContent = pct + "%";
+  document.getElementById("progressFill").style.width = pct + "%";
+}
+
+// ---------- 渲染：汇总 ----------
+function gradeOf(score) {
+  if (score >= 90) return { label: "优秀", cls: "s-excellent", color: "#27ae60" };
+  if (score >= 80) return { label: "良好", cls: "s-good", color: "#2980b9" };
+  if (score >= 60) return { label: "及格", cls: "s-pass", color: "#f39c12" };
+  return { label: "不及格", cls: "s-fail", color: "#c0392b" };
+}
+
+function renderSummary() {
+  updateProgress();
+  const graded = results.filter(r => r.score !== null);
+  const scores = graded.map(r => r.score);
+  const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : "—";
+  const max = scores.length ? Math.max(...scores) : "—";
+  const min = scores.length ? Math.min(...scores) : "—";
+
+  const dist = [
+    { label: "优秀 (90-100)", color: "#27ae60", n: scores.filter(s => s >= 90).length },
+    { label: "良好 (80-89)", color: "#2980b9", n: scores.filter(s => s >= 80 && s < 90).length },
+    { label: "及格 (60-79)", color: "#f39c12", n: scores.filter(s => s >= 60 && s < 80).length },
+    { label: "不及格 (<60)", color: "#c0392b", n: scores.filter(s => s < 60).length },
+  ];
+  const maxN = Math.max(1, ...dist.map(d => d.n));
+
+  const rows = results.map((r, i) => {
+    if (r.score === null) {
+      return `<tr><td>${i + 1}</td><td>${r.student}</td><td>—</td><td>未批</td><td>${r.comment}</td></tr>`;
+    }
+    const g = gradeOf(r.score);
+    return `<tr>
+      <td>${i + 1}</td>
+      <td>${r.student}</td>
+      <td class="score-badge ${g.cls}">${r.score}</td>
+      <td class="${g.cls}">${g.label}</td>
+      <td>${r.comment || "—"}</td>
+    </tr>`;
+  }).join("");
+
+  paperArea.innerHTML = `
+    <div class="summary">
+      <div class="paper" style="text-align:center;margin-bottom:20px">
+        <div class="stamp" style="position:static;display:inline-block;transform:rotate(-8deg)">🎉 批完啦</div>
+        <h2 style="margin-top:14px">本班作业批改汇总</h2>
+        <p style="font-size:13px;color:#8a7f6a;margin-top:6px">共 ${students.length} 人 · 已批 ${graded.length} 人</p>
+      </div>
+      <div class="stat-cards">
+        <div class="stat-card"><div class="v">${avg}</div><div class="k">平均分</div></div>
+        <div class="stat-card"><div class="v">${max}</div><div class="k">最高分</div></div>
+        <div class="stat-card"><div class="v">${min}</div><div class="k">最低分</div></div>
+        <div class="stat-card"><div class="v">${scores.length ? Math.round(scores.filter(s => s >= 60).length / scores.length * 100) : 0}%</div><div class="k">及格率</div></div>
+      </div>
+      <div class="dist">
+        ${dist.map(d => `
+          <div class="dist-row">
+            <span style="width:110px">${d.label}</span>
+            <div class="bar-bg"><div class="bar" style="width:${d.n / maxN * 100}%;background:${d.color}"></div></div>
+            <span style="width:30px;text-align:right">${d.n} 人</span>
+          </div>
+        `).join("")}
+      </div>
+      <table class="grade-table">
+        <thead><tr><th>#</th><th>学生</th><th>分数</th><th>等级</th><th>批语</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <button class="btn btn-primary restart" onclick="restart()">🔄 换一批学生，再批一次</button>
+    </div>
+  `;
+}
+
+window.restart = function() {
+  students = makeBatch();
+  idx = 0;
+  results = [];
+  renderPaper();
+  toast("新的一批作业来了！");
+};
+
+// ---------- 键盘操作 ----------
+document.addEventListener("keydown", (e) => {
+  const input = document.getElementById("scoreInput");
+  if (!input) return; // 汇总页
+  if (e.key === "Enter") {
+    e.preventDefault();
+    submitGrade();
+    return;
+  }
+  if (e.key === " ") {
+    // 空格：按当前正确率自动给个分（偷懒模式）
+    e.preventDefault();
+    const qs = students[idx].questions;
+    const right = qs.filter(q => q.student === q.correct).length;
+    const score = Math.max(0, Math.round((right / qs.length) * 100) - (right === qs.length ? 0 : 5));
+    input.value = Math.min(100, score);
+    toast(`自动打分：对 ${right}/${qs.length} 题 → ${score} 分（Enter 确认）`);
+    return;
+  }
+  if (/^\d$/.test(e.key) && document.activeElement !== input) {
+    e.preventDefault();
+    input.focus();
+    input.value = (input.value || "") + e.key;
+  }
+});
+
+// ---------- toast ----------
+let toastTimer;
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1800);
+}
+
+renderPaper();
+</script>
+</body>
+</html>

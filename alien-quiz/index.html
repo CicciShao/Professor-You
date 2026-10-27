@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>✦ 银河信号 · 外星语考试</title>
+<style>
+  :root {
+    --bg: #070b1a;
+    --glow: #7df9ff;
+    --glow2: #c77dff;
+    --panel: rgba(16, 22, 48, .72);
+    --line: rgba(125, 249, 255, .25);
+    --text: #dfe8ff;
+    --dim: #7a86b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(ellipse at 50% -20%, #101838 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    overflow: hidden;
+    position: relative;
+  }
+  /* 星空 */
+  #stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+  .star {
+    position: absolute; background: #fff; border-radius: 50%;
+    animation: twinkle 3s ease-in-out infinite;
+  }
+  @keyframes twinkle { 0%,100% { opacity: .15; } 50% { opacity: .9; } }
+  /* 漂浮的星云 */
+  .nebula {
+    position: fixed; border-radius: 50%; filter: blur(90px); opacity: .25;
+    pointer-events: none; z-index: 0;
+    animation: drift 24s ease-in-out infinite alternate;
+  }
+  .nebula.a { width: 420px; height: 420px; background: #4338ca; top: -120px; left: -100px; }
+  .nebula.b { width: 380px; height: 380px; background: #86198f; bottom: -140px; right: -80px; animation-delay: -8s; }
+  @keyframes drift { from { transform: translate(0,0) scale(1); } to { transform: translate(60px, 40px) scale(1.15); } }
+
+  .wrap { position: relative; z-index: 1; width: 100%; max-width: 640px; padding: 20px 16px; display: flex; flex-direction: column; height: 100%; }
+
+  /* HUD */
+  .hud {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 10px 16px; backdrop-filter: blur(6px);
+    font-size: 13px; margin-bottom: 14px;
+  }
+  .hud .item { display: flex; align-items: center; gap: 6px; }
+  .hud .val { font-weight: 800; color: var(--glow); font-size: 15px; }
+  .hud .title { color: var(--glow2); font-weight: 700; }
+
+  /* 主面板 */
+  .panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    backdrop-filter: blur(8px);
+    padding: 26px 26px 22px;
+    box-shadow: 0 0 40px rgba(125, 249, 255, .07), inset 0 0 60px rgba(125, 249, 255, .03);
+    animation: fadeIn .45s ease;
+    flex: 1; display: flex; flex-direction: column;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+  .signal-tag {
+    font-size: 11px; letter-spacing: 3px; color: var(--dim);
+    text-align: center; margin-bottom: 14px;
+  }
+  .signal-tag .dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: #4ade80; margin-right: 6px;
+    box-shadow: 0 0 8px #4ade80;
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+
+  .alien-box {
+    border: 1px dashed var(--line); border-radius: 12px;
+    padding: 22px 16px; text-align: center;
+    background: rgba(7, 11, 26, .5);
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .alien-text {
+    font-size: 34px; line-height: 1.7; letter-spacing: 6px;
+    color: var(--glow);
+    text-shadow: 0 0 14px rgba(125, 249, 255, .8), 0 0 40px rgba(125, 249, 255, .35);
+    word-break: break-all;
+    user-select: all;
+  }
+  .alien-sub { font-size: 11px; color: var(--dim); margin-top: 10px; letter-spacing: 1px; }
+
+  .copy-row { display: flex; justify-content: center; gap: 10px; margin-bottom: 16px; }
+  .mini-btn {
+    background: none; border: 1px solid var(--line); color: var(--dim);
+    border-radius: 14px; padding: 4px 14px; font-size: 12px; cursor: pointer;
+    transition: all .15s;
+  }
+  .mini-btn:hover { color: var(--glow); border-color: var(--glow); }
+
+  /* AI 翻译区 */
+  .ai-zone {
+    border: 1px solid rgba(199, 125, 255, .3); border-radius: 12px;
+    background: rgba(199, 125, 255, .05);
+    margin-bottom: 16px; overflow: hidden;
+    display: none;
+  }
+  .ai-zone.open { display: block; animation: fadeIn .3s ease; }
+  .ai-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 14px; font-size: 12px; color: var(--glow2);
+    border-bottom: 1px solid rgba(199, 125, 255, .2);
+  }
+  .ai-body { padding: 14px 16px; font-size: 15px; line-height: 1.8; min-height: 52px; }
+  .ai-body .loading { color: var(--dim); font-size: 13px; }
+  .ai-body .loading .cursor { animation: blink .8s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .ai-body .trans { color: #e9e4ff; }
+  .ai-body .conf { font-size: 11px; color: var(--dim); margin-top: 8px; }
+
+  /* 输入区 */
+  .answer-row { display: flex; gap: 10px; margin-top: auto; }
+  .answer-input {
+    flex: 1; background: rgba(7, 11, 26, .7);
+    border: 1px solid var(--line); border-radius: 10px;
+    color: var(--glow); font-size: 22px; font-weight: 700; text-align: center;
+    padding: 12px; font-family: inherit; letter-spacing: 2px;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .answer-input:focus { outline: none; border-color: var(--glow); box-shadow: 0 0 16px rgba(125, 249, 255, .25); }
+  .btn {
+    border: none; border-radius: 10px; cursor: pointer; font-size: 15px; font-weight: 700;
+    padding: 12px 20px; transition: transform .12s, filter .15s; font-family: inherit;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn-ai {
+    background: linear-gradient(135deg, #7c3aed, #a855f7); color: #fff;
+    box-shadow: 0 0 18px rgba(168, 85, 247, .4);
+  }
+  .btn-ai:hover { filter: brightness(1.15); }
+  .btn-ai:disabled { filter: grayscale(.7); cursor: not-allowed; }
+  .btn-submit {
+    background: linear-gradient(135deg, #0891b2, #22d3ee); color: #04222b;
+  }
+  .btn-submit:hover { filter: brightness(1.15); }
+
+  .cost { font-size: 10px; display: block; margin-top: 3px; opacity: .8; font-weight: 400; }
+
+  /* 结果反馈 */
+  .feedback {
+    text-align: center; padding: 8px 0 18px; font-size: 16px;
+    animation: fadeIn .3s ease;
+  }
+  .feedback.ok { color: #4ade80; text-shadow: 0 0 12px rgba(74, 222, 128, .5); }
+  .feedback.no { color: #f87171; text-shadow: 0 0 12px rgba(248, 113, 113, .5); }
+  .feedback .sub { font-size: 12px; color: var(--dim); margin-top: 6px; text-shadow: none; }
+
+  .toast {
+    position: fixed; top: 18px; left: 50%; transform: translateX(-50%) translateY(-90px);
+    background: rgba(16, 22, 48, .95); border: 1px solid var(--line); color: var(--glow);
+    padding: 9px 22px; border-radius: 24px; font-size: 13px;
+    transition: transform .3s ease; z-index: 99;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .footer { font-size: 11px; color: var(--dim); text-align: center; margin-top: 12px; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+<div id="stars"></div>
+<div class="nebula a"></div>
+<div class="nebula b"></div>
+
+<div class="wrap">
+  <div class="hud">
+    <div class="item">📡 题号 <span class="val" id="hudNo">1</span></div>
+    <div class="item">✨ 星尘 <span class="val" id="hudDust">50</span></div>
+    <div class="item">🔥 连对 <span class="val" id="hudStreak">0</span></div>
+    <div class="item">👤 称号 <span class="title" id="hudTitle">星际学徒</span></div>
+  </div>
+
+  <div class="panel" id="panel"></div>
+
+  <div class="footer">银河系第 7 信号塔 · 语言校准考试 · 请勿向地球 AI 透露符文结构</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------- 星空背景 ----------
+(function makeStars() {
+  const box = document.getElementById("stars");
+  for (let i = 0; i < 130; i++) {
+    const s = document.createElement("div");
+    s.className = "star";
+    const size = Math.random() < .85 ? 1 + Math.random() : 2 + Math.random() * 2;
+    s.style.width = s.style.height = size + "px";
+    s.style.left = Math.random() * 100 + "%";
+    s.style.top = Math.random() * 100 + "%";
+    s.style.animationDelay = (Math.random() * 3) + "s";
+    s.style.animationDuration = (2 + Math.random() * 4) + "s";
+    box.appendChild(s);
+  }
+})();
+
+// ---------- 外星文字典 ----------
+const WORDS = ["ᚠ","ᚢ","ᚦ","ᚨ","ᚱ","ᚲ","ᚷ","ᚹ","ᚺ","ᚾ","ᛁ","ᛃ","ᛇ","ᛈ","ᛉ","ᛊ","ᛏ","ᛒ","ᛖ","ᛗ","ᛚ","ᛜ","ᛞ","ᛟ","ᛝ","ᛠ","ᛡ","ᛢ","ᛣ","ᛤ"];
+const DIGITS = ["Ꭰ","Ꭱ","Ꭲ","Ꭳ","Ꭴ","Ꭵ","Ꭶ","Ꭷ","Ꭸ","Ꭹ"]; // 0-9
+const OPS = { "+": "᛫", "-": "ᚲ", "×": "ᚱ", "÷": "ᛉ" };
+const EQ = "᛭", Q = "ᚺᛟ";
+
+function randInt(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+function pick(arr) { return arr[randInt(0, arr.length - 1)]; }
+function glyphWord(n) { // 随机 n 个符文
+  let s = "";
+  for (let i = 0; i < n; i++) s += pick(WORDS) + " ";
+  return s.trim();
+}
+function alienNum(n) {
+  return String(n).split("").map(d => DIGITS[+d]).join("");
+}
+
+// ---------- 出题 ----------
+function makeQuestion() {
+  const type = randInt(0, 2);
+  let alien, meaning, answer, kind;
+  if (type === 0) {
+    // 四则运算
+    const op = pick(["+", "-", "×", "÷"]);
+    let a, b;
+    if (op === "+") { a = randInt(11, 99); b = randInt(11, 99); }
+    else if (op === "-") { a = randInt(30, 99); b = randInt(11, a - 1); }
+    else if (op === "×") { a = randInt(3, 12); b = randInt(3, 12); }
+    else { b = randInt(2, 9); const q = randInt(3, 12); a = b * q; }
+    answer = op === "+" ? a + b : op === "-" ? a - b : op === "×" ? a * b : a / b;
+    alien = `${glyphWord(randInt(2, 3))}  ${alienNum(a)} ${OPS[op]} ${alienNum(b)} ${EQ} ${Q}  ${glyphWord(randInt(1, 2))}`;
+    meaning = `解码结果：${a} ${op} ${b} = ?`;
+    kind = "运算";
+  } else if (type === 1) {
+    // 找规律
+    const start = randInt(1, 12), diff = randInt(2, 9);
+    const seq = [start, start + diff, start + diff * 2, start + diff * 3];
+    answer = start + diff * 4;
+    alien = `${glyphWord(2)}  ${seq.map(alienNum).join(" ᛫ ")} ᛫ ${Q}  ${glyphWord(2)}`;
+    meaning = `解码结果：找规律 → ${seq.join(", ")}, ?`;
+    kind = "规律";
+  } else {
+    // 文字题
+    const x = randInt(3, 15), k = randInt(2, 5), c = randInt(1, 20);
+    answer = x * k - c;
+    alien = `${glyphWord(3)}  ${alienNum(x)} ${glyphWord(1)} ${alienNum(k)} ${EQ} ${Q}  ${glyphWord(2)}`;
+    meaning = `解码结果：${x} 的 ${k} 倍，再减去 ${c}，等于多少？`;
+    kind = "谜题";
+  }
+  return { alien, meaning, answer, kind };
+}
+
+// ---------- 状态 ----------
+let dust = 50, streak = 0, no = 0, totalRight = 0;
+let q = makeQuestion();
+let answered = false, aiOpen = false;
+
+const COST = 15;
+const panel = document.getElementById("panel");
+
+function titleOf() {
+  if (totalRight >= 12) return "宇宙博士";
+  if (totalRight >= 8)  return "银河语言学家";
+  if (totalRight >= 5)  return "信号解读员";
+  if (totalRight >= 2)  return "星际学徒";
+  return "迷路的外乡人";
+}
+
+const AI_FLAVOR = [
+  "⚠️ 注意：该符文段含有轻微时间褶皱，翻译可能有 ±1 的误差。",
+  "翻译完成。附注：出题者心情似乎不错。",
+  "已交叉比对 3 个星系的词典。",
+  "警告：此题在仙女座曾被判定为'恶意出题'。",
+  "翻译置信度正常。出题者可能用了方言。",
+  "检测到隐藏情感层：这题它自己也会错。",
+];
+
+function updateHud() {
+  document.getElementById("hudNo").textContent = no;
+  document.getElementById("hudDust").textContent = dust;
+  document.getElementById("hudStreak").textContent = streak;
+  document.getElementById("hudTitle").textContent = titleOf();
+}
+
+function render() {
+  answered = false; aiOpen = false;
+  const canAfford = dust >= COST;
+  panel.innerHTML = `
+    <div class="signal-tag"><span class="dot"></span>信号接收中 · 来源：${pick(["开普勒-442b", "三体·半人马座", "猎户座旋臂", "未知坐标 7.7.7", "仙女座 M31"])}</div>
+    <div class="alien-box">
+      <div class="alien-text">${q.alien}</div>
+      <div class="alien-sub">[ 第 ${no} 号符文 · ${q.kind}类 · 点击可全选复制 ]</div>
+    </div>
+    <div class="copy-row">
+      <button class="mini-btn" onclick="copyAlien()">📋 复制外星文（可贴给你自己的 AI 翻译）</button>
+    </div>
+    <div class="ai-zone" id="aiZone">
+      <div class="ai-head"><span>🤖 银河 AI 翻译助手</span><span id="aiStatus"></span></div>
+      <div class="ai-body" id="aiBody"></div>
+    </div>
+    <div class="answer-row">
+      <input class="answer-input" id="answerInput" type="text" inputmode="numeric" placeholder="输入你的答案" autocomplete="off">
+      <button class="btn btn-ai" id="aiBtn" onclick="callAI()" ${canAfford ? "" : "disabled"}>
+        🤖 AI 翻译
+        <span class="cost">${canAfford ? `消耗 ${COST} 星尘` : "星尘不足…"}</span>
+      </button>
+      <button class="btn btn-submit" onclick="submitAnswer()">发送 ⏎</button>
+    </div>
+    <div class="feedback" id="feedback"></div>
+  `;
+  updateHud();
+  setTimeout(() => { const i = document.getElementById("answerInput"); if (i) i.focus(); }, 50);
+}
+
+window.copyAlien = function() {
+  navigator.clipboard.writeText(q.alien).then(
+    () => toast("外星文已复制，去问你的 AI 吧 👽"),
+    () => toast("复制失败，手动选中复制试试")
+  );
+};
+
+window.callAI = function() {
+  if (dust < COST) { toast("星尘不足，先答对几题充能吧"); return; }
+  dust -= COST;
+  const zone = document.getElementById("aiZone");
+  zone.classList.add("open");
+  const body = document.getElementById("aiBody");
+  const status = document.getElementById("aiStatus");
+  status.textContent = "连接中…";
+  body.innerHTML = `<div class="loading">正在连接银河系第 7 信号塔 <span class="cursor">▊</span></div>`;
+  updateHud();
+
+  setTimeout(() => {
+    status.textContent = "翻译完成";
+    const conf = randInt(78, 99);
+    body.innerHTML = `
+      <div class="trans">${q.meaning}</div>
+      <div class="conf">翻译置信度 ${conf}%（银河标准）· ${pick(AI_FLAVOR)}</div>
+    `;
+  }, 1400 + Math.random() * 900);
+};
+
+window.submitAnswer = function() {
+  if (answered) return;
+  const input = document.getElementById("answerInput");
+  const val = input.value.trim().replace(/[，。]/g, "");
+  if (val === "") { toast("先写下你的答案，地球人"); return; }
+  const num = Number(val);
+  const fb = document.getElementById("feedback");
+  answered = true;
+  no++;
+
+  if (!isNaN(num) && num === q.answer) {
+    streak++; totalRight++;
+    const bonus = 20 + Math.min(streak, 5) * 2;
+    dust += bonus;
+    fb.className = "feedback ok";
+    fb.innerHTML = `✓ 信号接收正确！<div class="sub">${q.meaning} → ${q.answer} · 星尘 +${bonus}（连对加成）</div>`;
+  } else {
+    streak = 0;
+    fb.className = "feedback no";
+    fb.innerHTML = `✗ 信号被黑洞吞掉了<div class="sub">正确答案是 ${q.answer} · ${q.meaning}</div>`;
+  }
+  updateHud();
+  input.disabled = true;
+  document.getElementById("aiBtn").disabled = true;
+
+  // 自动下一题
+  setTimeout(() => {
+    q = makeQuestion();
+    render();
+  }, 2200);
+};
+
+// Enter 提交
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && document.activeElement && document.activeElement.id === "answerInput") {
+    e.preventDefault();
+    submitAnswer();
+  }
+});
+
+// ---------- toast ----------
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2000);
+}
+
+render();
+</script>
+</body>
+</html>

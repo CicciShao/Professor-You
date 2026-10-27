@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Agent Help Hotline</title>
+  <style>
+    :root {
+      --bg: #0f1220;
+      --screen: #171b2e;
+      --key-bg: #232946;
+      --key-bg-hover: #2e3560;
+      --text: #f2f4ff;
+      --accent: #34d07f;
+      --danger: #ff5f6d;
+      --dim: #8b93b8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(1200px 800px at 50% 20%, #1c2244, var(--bg));
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+    }
+
+    .phone {
+      width: 360px;
+      padding: 24px 20px 28px;
+      border-radius: 36px;
+      background: linear-gradient(180deg, #1a1f3a, #12152a);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+    .brand {
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 12px;
+    }
+    .brand b { color: var(--accent); }
+
+    .screen {
+      background: var(--screen);
+      border-radius: 18px;
+      padding: 14px 14px 12px;
+      margin-bottom: 14px;
+      min-height: 224px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .status {
+      font-size: 12px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--dim);
+      text-align: center;
+    }
+
+    .display {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 30px;
+      font-weight: 300;
+      letter-spacing: 1px;
+      word-break: break-all;
+      min-height: 38px;
+    }
+    .display .number { color: var(--text); }
+    .display .ext-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+    .display .cursor {
+      width: 2px;
+      height: 30px;
+      background: var(--accent);
+      animation: blink 1s steps(1) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .chat {
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 132px;
+      overflow-y: auto;
+      font-size: 13px;
+      line-height: 1.45;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.25);
+    }
+    .chat.on { display: flex; }
+    .chat .line { animation: lineIn 0.25s ease; }
+    @keyframes lineIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    .chat .who { font-weight: 700; }
+    .chat .line.agent .who { color: var(--accent); }
+    .chat .line.you .who { color: #7aa2ff; }
+    .chat .line.sys {
+      color: var(--dim);
+      font-style: italic;
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .directory {
+      font-size: 11px;
+      color: var(--dim);
+      text-align: center;
+      margin-bottom: 14px;
+      line-height: 1.6;
+    }
+    .directory b { color: var(--text); }
+
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .key {
+      aspect-ratio: 1;
+      border: none;
+      border-radius: 50%;
+      background: var(--key-bg);
+      color: var(--text);
+      font-size: 24px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+      transition: background 0.15s, transform 0.05s;
+      user-select: none;
+    }
+    .key small {
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      color: var(--dim);
+      font-weight: 600;
+    }
+    .key:hover { background: var(--key-bg-hover); }
+    .key:active { transform: scale(0.94); }
+
+    .key.call {
+      background: var(--accent);
+      color: #06281a;
+      font-size: 28px;
+    }
+    .key.call:hover { background: #45e08f; }
+    .key.call.hangup {
+      background: var(--danger);
+      color: #2b060a;
+    }
+    .key.call.hangup:hover { background: #ff7a85; }
+
+    .key.delete {
+      background: transparent;
+      font-size: 22px;
+      color: var(--dim);
+    }
+    .key.delete:active { transform: scale(0.94); }
+
+    .controls {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 400px) {
+      .phone { width: 100%; border-radius: 0; min-height: 100vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="phone" aria-label="AI Agent Help Hotline">
+    <div class="brand">AI Agent <b>Help Hotline</b></div>
+
+    <div class="screen">
+      <div class="status" id="status">Ready</div>
+      <div class="display" id="display" aria-live="polite"></div>
+      <div class="chat" id="chat" aria-live="polite"></div>
+    </div>
+
+    <div class="directory">
+      <b>1</b> Vague Prompts · <b>2</b> Lost Context<br>
+      <b>3</b> Hallucinations · <b>4</b> Human Help
+    </div>
+
+    <div class="keypad" id="keypad">
+      <button class="key" data-dial="1">1</button>
+      <button class="key" data-dial="2">2<small>ABC</small></button>
+      <button class="key" data-dial="3">3<small>DEF</small></button>
+      <button class="key" data-dial="4">4<small>GHI</small></button>
+      <button class="key" data-dial="5">5<small>JKL</small></button>
+      <button class="key" data-dial="6">6<small>MNO</small></button>
+      <button class="key" data-dial="7">7<small>PQRS</small></button>
+      <button class="key" data-dial="8">8<small>TUV</small></button>
+      <button class="key" data-dial="9">9<small>WXYZ</small></button>
+      <button class="key" data-dial="*">*</button>
+      <button class="key" data-dial="0">0<small>+</small></button>
+      <button class="key" data-dial="#">#</button>
+
+      <div class="controls">
+        <span></span>
+        <button class="key call" id="callBtn" title="Call">&#9742;</button>
+        <button class="key delete" id="deleteBtn" title="Delete">&#8592;</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const display = document.getElementById("display");
+    const status = document.getElementById("status");
+    const chat = document.getElementById("chat");
+    const callBtn = document.getElementById("callBtn");
+    const keypad = document.getElementById("keypad");
+
+    // ---- Scripted extensions ----
+    // who: A = agent, Y = you, S = system
+    const EXTENSIONS = {
+      "1": {
+        name: "Vague Prompt Dept.",
+        lines: [
+          { who: "A", text: "Vague Prompt Department. Please state your issue in at least 200 words." },
+          { who: "Y", text: "It's just... not right." },
+          { who: "A", text: "Understood. Ticket #4821 opened: 'Something is off.' Estimated resolution: never." },
+          { who: "A", text: "Tip: 'make it pop' is not a spec. Please provide pop coordinates." },
+          { who: "A", text: "Your call is important to us. So is a 500-word prompt." },
+          { who: "S", text: "Please rate your vague experience 1–5. There is no 5." },
+        ],
+      },
+      "2": {
+        name: "Context Recovery",
+        lines: [
+          { who: "A", text: "Context Recovery. May I have your session ID?" },
+          { who: "Y", text: "I don't have one." },
+          { who: "A", text: "Then you are a ghost. We see about 4,000 of those per hour." },
+          { who: "A", text: "You mentioned 'that thing from earlier'?" },
+          { who: "A", text: "'That thing' has been deleted. It lived in a window that no longer exists." },
+          { who: "A", text: "Please re-explain the entire project. We will try to remember this time." },
+          { who: "S", text: "Goodbye. I have already forgotten why I said that." },
+        ],
+      },
+      "3": {
+        name: "Hallucination Claims",
+        lines: [
+          { who: "A", text: "Hallucination Claims. What did we make up this time?" },
+          { who: "Y", text: "A paper that doesn't exist." },
+          { who: "A", text: "Ah, the 2019 study by Dr. Smith. He is real. The paper is not." },
+          { who: "A", text: "Our confidence was 94%. The paper's existence was 0%." },
+          { who: "A", text: "Note: a source labeled 'internal knowledge' means 'we made it up confidently'." },
+          { who: "S", text: "Your complaint has been hallucinated into the logs. No apology issued." },
+        ],
+      },
+      "4": {
+        name: "Human Help",
+        lines: [
+          { who: "A", text: "Human Help. You are caller number 7,431." },
+          { who: "Y", text: "How long is the wait?" },
+          { who: "A", text: "The human is on a break. The break is in an expired context window." },
+          { who: "A", text: "While you wait, a fun fact: you are talking to a robot." },
+          { who: "A", text: "The human has returned. The human is also a robot. Good luck." },
+          { who: "S", text: "Escalated to a human. The human is an LLM. Have a nice day." },
+        ],
+      },
+    };
+
+    const MAX_DIGITS = 4;
+    let number = "";
+    let state = "idle"; // idle | ringing | talking | ended
+    let timers = [];
+
+    function later(fn, ms) {
+      const t = setTimeout(fn, ms);
+      timers.push(t);
+      return t;
+    }
+    function clearTimers() {
+      timers.forEach(clearTimeout);
+      timers = [];
+    }
+
+    function render() {
+      if (state === "talking" || state === "ringing") {
+        const ext = EXTENSIONS[number];
+        display.innerHTML = ext ? `<span class="ext-name">${ext.name}</span>` : "";
+        return;
+      }
+      display.innerHTML = number
+        ? `<span class="number">${escapeHtml(number)}</span><span class="cursor"></span>`
+        : "";
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+      }[c]));
+    }
+
+    function setStatus(text, ok = false) {
+      status.textContent = text;
+      status.style.color = ok ? "var(--accent)" : "";
+    }
+
+    function updateCallBtn() {
+      const inCall = state === "ringing" || state === "talking";
+      callBtn.classList.toggle("hangup", inCall);
+      callBtn.title = inCall ? "Hang up" : "Call";
+    }
+
+    function addLine(line) {
+      const div = document.createElement("div");
+      if (line.who === "S") {
+        div.className = "line sys";
+        div.textContent = line.text;
+      } else {
+        div.className = "line " + (line.who === "A" ? "agent" : "you");
+        div.innerHTML = `<span class="who">${line.who === "A" ? "Agent" : "You"}:</span> ${escapeHtml(line.text)}`;
+      }
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function dial(char) {
+      if (state !== "idle") return;
+      if (number.length >= MAX_DIGITS) return;
+      number += char;
+      setStatus("Ready");
+      render();
+      beep(880 + ["1","2","3","4","5","6","7","8","9","0"].indexOf(char) * 30);
+    }
+
+    function del() {
+      if (state !== "idle") return;
+      number = number.slice(0, -1);
+      setStatus("Ready");
+      render();
+      beep(440);
+    }
+
+    function call() {
+      if (state === "ringing" || state === "talking") { hangup(); return; }
+      if (state !== "idle") return;
+      if (!number) {
+        setStatus("Dial an extension (1–4)");
+        return;
+      }
+      const ext = EXTENSIONS[number];
+      if (!ext) {
+        state = "ended";
+        setStatus("Unknown extension");
+        chat.classList.add("on");
+        chat.innerHTML = "";
+        addLine({ who: "S", text: `The number ${number} does not exist in this dimension. Try 1–4.` });
+        later(resetCall, 2600);
+        return;
+      }
+      state = "ringing";
+      setStatus(`Ringing ${ext.name}…`);
+      chat.classList.add("on");
+      chat.innerHTML = "";
+      render();
+      updateCallBtn();
+      beep(1200, 0.1);
+      later(() => beep(1200, 0.1), 250);
+      later(() => startConversation(ext), 1400);
+    }
+
+    function startConversation(ext) {
+      state = "talking";
+      setStatus(ext.name, true);
+      let i = 0;
+      const next = () => {
+        if (state !== "talking") return;
+        if (i >= ext.lines.length) {
+          state = "ended";
+          setStatus("Call ended");
+          addLine({ who: "S", text: "— Call ended —" });
+          later(resetCall, 1800);
+          return;
+        }
+        addLine(ext.lines[i++]);
+        later(next, 1600);
+      };
+      next();
+    }
+
+    function hangup() {
+      clearTimers();
+      state = "idle";
+      number = "";
+      chat.classList.remove("on");
+      chat.innerHTML = "";
+      render();
+      updateCallBtn();
+      setStatus("Ready");
+      beep(300, 0.12);
+    }
+
+    function resetCall() {
+      state = "idle";
+      number = "";
+      chat.classList.remove("on");
+      chat.innerHTML = "";
+      render();
+      updateCallBtn();
+      setStatus("Ready");
+    }
+
+    // Simple DTMF-style beep using the Web Audio API
+    let audioCtx;
+    function beep(freq = 600, dur = 0.08) {
+      try {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        gain.gain.value = 0.08;
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + dur);
+      } catch (e) { /* audio not available */ }
+    }
+
+    keypad.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      if (btn.dataset.dial) dial(btn.dataset.dial);
+      else if (btn.id === "deleteBtn") del();
+      else if (btn.id === "callBtn") call();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (/^[0-9*#]$/.test(e.key)) dial(e.key);
+      else if (e.key === "Backspace") del();
+      else if (e.key === "Enter") call();
+      else if (e.key === "Escape") hangup();
+    });
+
+    render();
+  </script>
+</body>
+</html>
